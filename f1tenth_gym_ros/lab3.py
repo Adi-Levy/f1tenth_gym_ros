@@ -135,6 +135,7 @@ class Lab3(Node):
     def cmd_callback(self, msg):
         self.cmd[0] = msg.drive.speed
         self.cmd[1] = msg.drive.steering_angle
+        print("cmd: ",self.cmd)
         
     def odom_callback(self, msg):
         self.tmp_pose[0] = msg.pose.pose.position.x
@@ -221,15 +222,29 @@ class Lab3(Node):
         
         ########## Implement the EKF here ##########
         # TODO 1: matrix definitions
+        H_t = np.eye(3)
+        Z_t = np.array([self.laser_pose[0], self.laser_pose[1], self.laser_pose[2]])
+        R_t = self.laser_covariance
+        
+        X_t_minus_1 = np.array([self.pose[0], self.pose[1], self.pose[2]])
+        Q_t_minus_1 = np.eye(3)*0.1
+        G_t = np.array([[1, 0, -self.cmd[0] * self.dt * np.sin(self.pose[2])],
+                        [0, 1, self.cmd[0] * self.dt * np.cos(self.pose[2])],
+                        [0, 0, 1]])
         
         # TODO 2: prediction step
+        X_t_bar = forward_simulation_of_kineamtic_model(X_t_minus_1[0], X_t_minus_1[1], X_t_minus_1[2], self.cmd[0], self.cmd[1], self.dt)
+        P_t_bar = G_t @ self.P @ G_t.T + Q_t_minus_1
         
         # TODO 3: calc Kalman gain
+        K_t = P_t_bar @ H_t.T @ np.linalg.inv(H_t @ P_t_bar @ H_t.T + R_t)
         
         # TODO 4: update step
+        pose = X_t_bar + K_t @ (Z_t - H_t @ X_t_bar)
+        covariance = (np.eye(3) - K_t @ H_t) @ P_t_bar
         # pose = np.zeros(3)
         # covariance = np.eye(3)*0.1
-        raise NotImplementedError()
+        # raise NotImplementedError()
         ########## End of EKF ##########
         self.pose = pose
         self.P = covariance
